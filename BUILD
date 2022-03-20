@@ -14,7 +14,7 @@
 load("@bazel_gazelle//:def.bzl", "gazelle")
 # Gazelle configuration options.
 # See https://github.com/bazelbuild/bazel-gazelle#running-gazelle-with-bazel
-# gazelle:prefix github.com/bazelbuild/rules_python
+# gazelle:prefix github.com/benchsci/rules_python_gazelle
 # gazelle:exclude bazel-out
 gazelle(name = "gazelle")
 

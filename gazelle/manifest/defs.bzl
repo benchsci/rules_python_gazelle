@@ -55,7 +55,7 @@ def gazelle_python_manifest(
 
     go_binary(
         name = update_target,
-        embed = ["@rules_python//gazelle/manifest/generate:generate_lib"],
+        embed = ["@com_github_benchsci_rules_python_gazelle//gazelle/manifest/generate:generate_lib"],
         data = [
             manifest,
             modules_mapping,
@@ -70,13 +70,13 @@ def gazelle_python_manifest(
 
     go_binary(
         name = test_binary,
-        embed = ["@rules_python//gazelle/manifest/test:test_lib"],
+        embed = ["@com_github_benchsci_rules_python_gazelle//gazelle/manifest/test:test_lib"],
         visibility = ["//visibility:private"],
     )
 
     native.sh_test(
         name = "{}.test".format(name),
-        srcs = ["@rules_python//gazelle/manifest/test:run.sh"],
+        srcs = ["@com_github_benchsci_rules_python_gazelle//gazelle/manifest/test:run.sh"],
         data = [
             ":{}".format(test_binary),
             manifest,

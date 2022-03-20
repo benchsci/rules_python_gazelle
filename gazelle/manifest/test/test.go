@@ -12,7 +12,7 @@ import (
 	"log"
 	"path/filepath"
 
-	"github.com/bazelbuild/rules_python/gazelle/manifest"
+	"github.com/benchsci/rules_python_gazelle/gazelle/manifest"
 )
 
 func main() {

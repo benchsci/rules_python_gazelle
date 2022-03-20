@@ -14,7 +14,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bazelbuild/rules_python/gazelle/manifest"
+	"github.com/benchsci/rules_python_gazelle/gazelle/manifest"
 )
 
 func init() {

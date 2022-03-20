@@ -12,8 +12,8 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 
-	"github.com/bazelbuild/rules_python/gazelle/manifest"
-	"github.com/bazelbuild/rules_python/gazelle/pythonconfig"
+	"github.com/benchsci/rules_python_gazelle/gazelle/manifest"
+	"github.com/benchsci/rules_python_gazelle/gazelle/pythonconfig"
 )
 
 // Configurer satisfies the config.Configurer interface. It's the

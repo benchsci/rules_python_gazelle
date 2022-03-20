@@ -3,7 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
 go_library(
     name = "test_lib",
     srcs = ["test.go"],
-    importpath = "github.com/bazelbuild/rules_python/gazelle/manifest/test",
+    importpath = "github.com/benchsci/rules_python_gazelle/gazelle/manifest/test",
     visibility = ["//visibility:public"],
     deps = ["//gazelle/manifest"],
 )

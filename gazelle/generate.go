@@ -10,7 +10,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/rule"
 	"github.com/google/uuid"
 
-	"github.com/bazelbuild/rules_python/gazelle/pythonconfig"
+	"github.com/benchsci/rules_python_gazelle/gazelle/pythonconfig"
 )
 
 // GenerateRules extracts build metadata from source files in a directory.

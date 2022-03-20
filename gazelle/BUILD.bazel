@@ -15,7 +15,7 @@ go_library(
         "std_modules.go",
         "target.go",
     ],
-    importpath = "github.com/bazelbuild/rules_python/gazelle",
+    importpath = "github.com/benchsci/rules_python_gazelle/gazelle",
     visibility = ["//visibility:public"],
     deps = [
         "//gazelle/manifest",

@@ -16,7 +16,7 @@ import (
 	"github.com/emirpasic/gods/sets/treeset"
 	godsutils "github.com/emirpasic/gods/utils"
 
-	"github.com/bazelbuild/rules_python/gazelle/pythonconfig"
+	"github.com/benchsci/rules_python_gazelle/gazelle/pythonconfig"
 )
 
 const languageName = "py"
