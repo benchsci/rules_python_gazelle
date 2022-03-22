@@ -57,6 +57,15 @@ func (py *Resolver) Imports(c *config.Config, r *rule.Rule, f *rule.File) []reso
 			provides = append(provides, provide)
 		}
 	}
+	// Provide possible typings
+	if f.Pkg == "typings" {
+		provide := resolve.ImportSpec{
+			Lang: languageName,
+			Imp:  fmt.Sprintf("typings.%s", r.Name()),
+		}
+		provides = append(provides, provide)
+
+	}
 	if r.PrivateAttr(uuidKey) != nil {
 		provide := resolve.ImportSpec{
 			Lang: languageName,
@@ -203,8 +212,19 @@ func (py *Resolver) Resolve(
 				}
 
 			} else {
-				if dep, ok := cfg.FindThirdPartyDependency(mod.Name); ok {
+				if dep, moduleName, ok := cfg.FindThirdPartyDependency(mod.Name); ok {
+					typings := fmt.Sprintf("typings.%s", moduleName)
+					imp := resolve.ImportSpec{Lang: languageName, Imp: typings}
 					deps.Add(dep)
+
+					matches := ix.FindRulesByImportWithConfig(c, imp, languageName)
+					if len(matches) > 0 {
+
+						matchLabel := matches[0].Label.Rel(from.Repo, from.Pkg)
+						dep := matchLabel.String()
+						deps.Add(dep)
+					}
+
 					if explainDependency == dep {
 						log.Printf("Explaining dependency (%s): "+
 							"in the target %q, the file %q imports %q at line %d, "+

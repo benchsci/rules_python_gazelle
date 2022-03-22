@@ -45,8 +45,11 @@ def parse_comments(content):
     return comments
 
 
-def check_type(content):
+def check_type(content, filename):
     # Check if there is indentation level 0 code that launches a function.
+    if filename.startswith(("test_", "__test")) or filename.endswith("_test.py"):
+        return "py_test"
+
     entrypoints = re.findall("\nif\s*__name__\s*==\s*[\"']__main__[\"']\s*:", content)
     # Check binary without main
     entrypoints += re.findall("\n\S+\([\S+]?\)", content)
@@ -66,11 +69,16 @@ def parse(repo_root, rel_package_path, filename):
                 parse_import_statements, content, rel_filepath
             )
             comments_future = executor.submit(parse_comments, content)
-            type_future = executor.submit(check_type, content)
+            type_future = executor.submit(check_type, content, filename)
         modules = modules_future.result()
         comments = comments_future.result()
         _type = type_future.result()
-        output = {"modules": modules, "comments": comments, "rules_type": _type}
+        output = {
+            "filename": filename,
+            "modules": modules,
+            "comments": comments,
+            "rules_type": _type,
+        }
         return output
 
 

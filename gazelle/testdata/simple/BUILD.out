@@ -1,4 +1,4 @@
-load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "pytest")
 
 py_library(
     name = "__init__",
@@ -6,16 +6,20 @@ py_library(
     deps = [":foo"],
 )
 
-py_library(
+py_binary(
     name = "__main__",
     srcs = ["__main__.py"],
+    main = "__main__.py",
 )
 
-py_binary(
+pytest(
     name = "__test__",
     srcs = ["__test__.py"],
     main = "__test__.py",
-    deps = [":__init__"],
+    deps = [
+        ":__init__",
+        ":__main__",
+    ],
 )
 
 py_library(

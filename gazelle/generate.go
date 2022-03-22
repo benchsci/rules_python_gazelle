@@ -8,6 +8,8 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/rule"
+	"github.com/emirpasic/gods/sets/treeset"
+	godsutils "github.com/emirpasic/gods/utils"
 	"github.com/google/uuid"
 
 	"github.com/benchsci/rules_python_gazelle/gazelle/pythonconfig"
@@ -26,6 +28,8 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 
 	pythonProjectRoot := cfg.PythonProjectRoot()
 
+	pyFilenames := treeset.NewWith(godsutils.StringComparator)
+
 	parser0 := newPython3Parser(args.Config.RepoRoot, args.Rel, cfg.IgnoresDependency)
 
 	var result language.GenerateResult
@@ -40,19 +44,24 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 		if ext != ".py" {
 			continue
 		}
-
-		parserOut, err := parser0.parseSingle(f)
-		if err != nil {
-			log.Fatalf("ERROR: %v\n", err)
-		}
+		pyFilenames.Add(f)
+	}
+	parserOutput, err := parser0.parseMultipe(pyFilenames)
+	if err != nil {
+		log.Fatalf("ERROR: %v\n", err)
+	}
+	for _, parserOut := range parserOutput {
+		f := parserOut.FileName
+		ext := filepath.Ext(f)
 
 		deps := parserOut.Modules
 		targetName := strings.TrimSuffix(f, ext)
 
-		if strings.HasSuffix(f, "_test.py") || (strings.HasPrefix(f, "test_")) {
+		if strings.HasSuffix(f, "_test.py") || (strings.HasPrefix(f, "test_")) || (strings.HasPrefix(f, "__test")) {
 
 			pyTestTarget := newTargetBuilder(getKind(args.Config, pyTestKind), targetName, pythonProjectRoot, args.Rel).
 				addSrc(f).
+				setMain(f).
 				addModuleDependencies(deps)
 
 			pyTest := pyTestTarget.build()

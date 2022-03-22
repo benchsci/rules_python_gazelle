@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -100,12 +101,73 @@ func (p *python3Parser) parseSingle(pyFilename string) (*parserOut, error) {
 
 // parse parses multiple Python files and returns the extracted modules from
 // the import statements as well as the parsed comments.
+func (p *python3Parser) parseMultipe(pyFilenames *treeset.Set) ([]parserOutput, error) {
+	parserMutex.Lock()
+	defer parserMutex.Unlock()
+
+	req := map[string]interface{}{
+		"repo_root":        p.repoRoot,
+		"rel_package_path": p.relPackagePath,
+		"filenames":        pyFilenames.Values(),
+	}
+	encoder := json.NewEncoder(parserStdin)
+	if err := encoder.Encode(&req); err != nil {
+		return nil, fmt.Errorf("failed to parse: %w", err)
+	}
+
+	reader := bufio.NewReader(parserStdout)
+	data, err := reader.ReadBytes(0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse: %w", err)
+	}
+	data = data[:len(data)-1]
+
+	var allRes []parserResponse
+	var output []parserOutput
+
+	if err := json.Unmarshal(data, &allRes); err != nil {
+		return nil, fmt.Errorf("failed to parse: %w", err)
+	}
+
+	for _, res := range allRes {
+		modules := treeset.NewWith(moduleComparator)
+		annotations := annotationsFromComments(res.Comments)
+		rule_type := res.RuleType
+
+		for _, m := range res.Modules {
+			// Check for ignored dependencies set via an annotation to the Python
+			// module.
+			if annotations.ignores(m.Name) {
+				continue
+			}
+
+			// Check for ignored dependencies set via a Gazelle directive in a BUILD
+			// file.
+			if p.ignoresDependency(m.Name) {
+				continue
+			}
+
+			modules.Add(m)
+		}
+		parO := parserOutput{FileName: res.FileName, Modules: modules, RuleType: rule_type}
+		output = append(output, parO)
+	}
+
+	sort.Slice(output, func(i, j int) bool {
+		return output[i].FileName < output[j].FileName
+
+	})
+
+	return output, nil
+}
+
+// parse parses multiple Python files and returns the extracted modules from
+// the import statements as well as the parsed comments.
 func (p *python3Parser) parse(pyFilenames *treeset.Set) (*parserOut, error) {
 	parserMutex.Lock()
 	defer parserMutex.Unlock()
 
 	modules := treeset.NewWith(moduleComparator)
-
 
 	req := map[string]interface{}{
 		"repo_root":        p.repoRoot,
@@ -127,7 +189,6 @@ func (p *python3Parser) parse(pyFilenames *treeset.Set) (*parserOut, error) {
 	if err := json.Unmarshal(data, &allRes); err != nil {
 		return nil, fmt.Errorf("failed to parse: %w", err)
 	}
-
 
 	rule_type := "py_library"
 	for _, res := range allRes {
@@ -159,9 +220,18 @@ func (p *python3Parser) parse(pyFilenames *treeset.Set) (*parserOut, error) {
 // parsed Python module.
 type parserOut struct {
 	// The modules depended by the parsed module.
-	Modules *treeset.Set
+	Modules  *treeset.Set
 	RuleType string
 }
+
+// parsed Python module.
+type parserOutput struct {
+	// The modules depended by the parsed module.
+	Modules  *treeset.Set
+	RuleType string
+	FileName string
+}
+
 // parserResponse represents a response returned by the parser.py for a given
 // parsed Python module.
 type parserResponse struct {
@@ -172,6 +242,8 @@ type parserResponse struct {
 	Comments []comment `json:"comments"`
 
 	RuleType string `json:"rules_type"`
+
+	FileName string `json:"filename"`
 }
 
 // module represents a fully-qualified, dot-separated, Python module as seen on
@@ -205,7 +277,6 @@ const (
 
 // comment represents a Python comment.
 type comment string
-
 
 // asAnnotation returns an annotation object if the comment has the
 // annotationPrefix.
