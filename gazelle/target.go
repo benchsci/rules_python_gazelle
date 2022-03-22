@@ -32,7 +32,7 @@ func newTargetBuilder(kind, name, pythonProjectRoot, bzlPackage string) *targetB
 		pythonProjectRoot: pythonProjectRoot,
 		bzlPackage:        bzlPackage,
 		srcs:              treeset.NewWith(godsutils.StringComparator),
-		deps:              treeset.NewWith(moduleComparator),
+		deps:              treeset.NewWith(linenoComparator),
 		resolvedDeps:      treeset.NewWith(godsutils.StringComparator),
 		visibility:        treeset.NewWith(godsutils.StringComparator),
 	}

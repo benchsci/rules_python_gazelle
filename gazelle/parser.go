@@ -130,7 +130,7 @@ func (p *python3Parser) parseMultipe(pyFilenames *treeset.Set) ([]parserOutput, 
 	}
 
 	for _, res := range allRes {
-		modules := treeset.NewWith(moduleComparator)
+		modules := treeset.NewWith(linenoComparator)
 		annotations := annotationsFromComments(res.Comments)
 		rule_type := res.RuleType
 
@@ -148,6 +148,7 @@ func (p *python3Parser) parseMultipe(pyFilenames *treeset.Set) ([]parserOutput, 
 			}
 
 			modules.Add(m)
+
 		}
 		parO := parserOutput{FileName: res.FileName, Modules: modules, RuleType: rule_type}
 		output = append(output, parO)
@@ -167,7 +168,7 @@ func (p *python3Parser) parse(pyFilenames *treeset.Set) (*parserOut, error) {
 	parserMutex.Lock()
 	defer parserMutex.Unlock()
 
-	modules := treeset.NewWith(moduleComparator)
+	modules := treeset.NewWith(linenoComparator)
 
 	req := map[string]interface{}{
 		"repo_root":        p.repoRoot,
@@ -263,6 +264,10 @@ type module struct {
 // moduleComparator compares modules by name.
 func moduleComparator(a, b interface{}) int {
 	return godsutils.StringComparator(a.(module).Name, b.(module).Name)
+}
+
+func linenoComparator(a, b interface{}) int {
+	return godsutils.UInt32Comparator(a.(module).LineNumber, b.(module).LineNumber)
 }
 
 // annotationKind represents Gazelle annotation kinds.

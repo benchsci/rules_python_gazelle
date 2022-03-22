@@ -57,7 +57,7 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 		deps := parserOut.Modules
 		targetName := strings.TrimSuffix(f, ext)
 
-		if strings.HasSuffix(f, "_test.py") || (strings.HasPrefix(f, "test_")) || (strings.HasPrefix(f, "__test")) {
+		if parserOut.RuleType == "py_test" {
 
 			pyTestTarget := newTargetBuilder(getKind(args.Config, pyTestKind), targetName, pythonProjectRoot, args.Rel).
 				addSrc(f).
