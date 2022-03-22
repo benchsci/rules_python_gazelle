@@ -1,6 +1,7 @@
 import unittest
 
 from __init__ import foo
+from __main__ import main
 
 
 class FooTest(unittest.TestCase):

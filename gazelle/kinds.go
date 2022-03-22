@@ -7,7 +7,7 @@ import (
 const (
 	pyBinaryKind  = "py_binary"
 	pyLibraryKind = "py_library"
-	pyTestKind    = "py_test"
+	pyTestKind    = "pytest"
 )
 
 // Kinds returns a map that maps rule names (kinds) and information on how to
