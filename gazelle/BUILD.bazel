@@ -47,21 +47,23 @@ py_binary(
     srcs = ["std_modules.py"],
     visibility = ["//visibility:public"],
 )
-
-go_test(
-    name = "gazelle_test",
-    srcs = ["python_test.go"],
-    data = [
-        ":gazelle_python_binary",
-        ":parse",
-        ":std_modules",
-    ] + glob(["testdata/**"]),
-    deps = [
+TEST_DEPS = [
         "@bazel_gazelle//testtools:go_default_library",
         "@com_github_emirpasic_gods//lists/singlylinkedlist",
         "@com_github_ghodss_yaml//:yaml",
         "@io_bazel_rules_go//go/tools/bazel:go_default_library",
-    ],
+    ]
+TEST_DATA = [
+        ":gazelle_python_binary",
+        ":parse",
+        ":std_modules",
+    ]
+
+go_test(
+    name = "test_simple",
+    srcs = ["python_test.go"],
+    data =  TEST_DATA + glob(["testdata/simple/**"]),
+    deps = TEST_DEPS,
 )
 
 gazelle_binary(
