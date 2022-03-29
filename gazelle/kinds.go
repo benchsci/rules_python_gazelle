@@ -18,7 +18,7 @@ func (*Python) Kinds() map[string]rule.KindInfo {
 
 var pyKinds = map[string]rule.KindInfo{
 	pyBinaryKind: {
-		MatchAny: true,
+		MatchAny: false,
 		NonEmptyAttrs: map[string]bool{
 			"deps":       true,
 			"main":       true,
@@ -26,7 +26,6 @@ var pyKinds = map[string]rule.KindInfo{
 			"imports":    true,
 			"visibility": true,
 		},
-		SubstituteAttrs: map[string]bool{},
 		MergeableAttrs: map[string]bool{
 			"srcs": true,
 		},
@@ -35,14 +34,13 @@ var pyKinds = map[string]rule.KindInfo{
 		},
 	},
 	pyLibraryKind: {
-		MatchAny: true,
+		MatchAny: false,
 		NonEmptyAttrs: map[string]bool{
 			"deps":       true,
 			"srcs":       true,
 			"imports":    true,
 			"visibility": true,
 		},
-		SubstituteAttrs: map[string]bool{},
 		MergeableAttrs: map[string]bool{
 			"srcs": true,
 		},
@@ -51,7 +49,7 @@ var pyKinds = map[string]rule.KindInfo{
 		},
 	},
 	pyTestKind: {
-		MatchAny: true,
+		MatchAny: false,
 		NonEmptyAttrs: map[string]bool{
 			"deps":       true,
 			"main":       true,
@@ -59,7 +57,6 @@ var pyKinds = map[string]rule.KindInfo{
 			"imports":    true,
 			"visibility": true,
 		},
-		SubstituteAttrs: map[string]bool{},
 		MergeableAttrs: map[string]bool{
 			"srcs": true,
 		},

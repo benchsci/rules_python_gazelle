@@ -47,7 +47,8 @@ def parse_comments(content):
 
 def check_type(content, filename):
     # Check if there is indentation level 0 code that launches a function.
-    if filename.startswith(("test_", "__test")) or filename.endswith("_test.py"):
+    # Benchsci doesn't support filename.endswith("_test.py"):
+    if filename.startswith(("test_", "__test")):
         return "py_test"
 
     entrypoints = re.findall("\nif\s*__name__\s*==\s*[\"']__main__[\"']\s*:", content)
