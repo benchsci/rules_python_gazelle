@@ -1,4 +1,5 @@
 load("@rules_python//python:defs.bzl", "py_binary", "py_library", "pytest")
+load("@com_github_benchsci_rules_python_gazelle:defs.bzl", "py_check")
 
 py_library(
     name = "__init__",
@@ -25,4 +26,14 @@ pytest(
 py_library(
     name = "foo",
     srcs = ["foo.py"],
+)
+
+py_check(
+    name = "check",
+    srcs = [
+        ":__init__",
+        ":__main__",
+        ":__test__",
+        ":foo",
+    ],
 )
