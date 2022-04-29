@@ -51,6 +51,7 @@ const (
 	TestNamingConvention = "python_test_naming_convention"
 
 	PytestConfTest = "pytest_conftest"
+	PyCheck        = "py_check"
 )
 
 // GenerationModeType represents one of the generation modes for the Python
@@ -97,6 +98,7 @@ type Config struct {
 	parent *Config
 
 	extensionEnabled  bool
+	pyCheck           string
 	repoRoot          string
 	pythonProjectRoot string
 	pytestConfTest    string
@@ -119,6 +121,7 @@ func New(
 ) *Config {
 	return &Config{
 		extensionEnabled:         true,
+		pyCheck:                  "",
 		repoRoot:                 repoRoot,
 		pythonProjectRoot:        pythonProjectRoot,
 		excludedPatterns:         singlylinkedlist.New(),
@@ -197,6 +200,24 @@ func (c *Config) SetPytestConfTest(pytestConfTest string) {
 // PythonProjectRoot returns the conftest.
 func (c *Config) PytestConfTest() string {
 	return c.pytestConfTest
+}
+
+// Enable pyCheck rule
+func (c *Config) PyCheck() string {
+	parent := c.parent
+	for parent != nil {
+		if parent.pyCheck == "enabled" && c.pyCheck == "" {
+			return parent.pyCheck
+
+		}
+		parent = parent.parent
+	}
+	return c.pyCheck
+}
+
+// Enable pyCheck rule
+func (c *Config) SetPyCheck(enabled string) {
+	c.pyCheck = enabled
 }
 
 // SetGazelleManifest sets the Gazelle manifest parsed from the

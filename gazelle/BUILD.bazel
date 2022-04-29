@@ -63,19 +63,19 @@ TEST_DATA = [
     ":std_modules",
 ]
 
-go_test(
-    name = "test_simple",
-    srcs = ["python_test.go"],
-    data = TEST_DATA + glob(["testdata/simple/**"]),
-    deps = TEST_DEPS,
-)
-
-go_test(
-    name = "test_django_test",
-    srcs = ["python_test.go"],
-    data = TEST_DATA + glob(["testdata/django_test/**"]),
-    deps = TEST_DEPS,
-)
+[
+    go_test(
+        name = "test_{}".format(t),
+        srcs = ["python_test.go"],
+        data = TEST_DATA + glob(["testdata/{}/**".format(t)]),
+        deps = TEST_DEPS,
+    )
+    for t in [
+        "simple",
+        "django_test",
+        "pycheck",
+    ]
+]
 
 gazelle_binary(
     name = "gazelle_python_binary",
