@@ -1,0 +1,23 @@
+load("@rules_python//python:defs.bzl", "py_library")
+load("@com_github_benchsci_rules_python_gazelle//:defs.bzl", "django_test")
+
+py_library(
+    name = "__init__",
+    srcs = ["__init__.py"],
+    deps = [":foo"],
+)
+
+django_test(
+    name = "__test__",
+    srcs = ["__test__.py"],
+    main = "__test__.py",
+    deps = [
+        ":__init__",
+        "@gazelle_python_test//pypi__django",
+    ],
+)
+
+py_library(
+    name = "foo",
+    srcs = ["foo.py"],
+)

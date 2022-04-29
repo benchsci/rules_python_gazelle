@@ -79,6 +79,15 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 
 			result.Gen = append(result.Gen, pyBinary)
 			result.Imports = append(result.Imports, pyBinary.PrivateAttr(config.GazelleImportsKey))
+		} else if parserOut.RuleType == "django_test" {
+
+			djangoTestTarget := newTargetBuilder(getKind(args.Config, djangoTestKind), targetName, pythonProjectRoot, args.Rel).
+				addSrc(f).
+				setMain(f).
+				addModuleDependencies(deps).build()
+
+			result.Gen = append(result.Gen, djangoTestTarget)
+			result.Imports = append(result.Imports, djangoTestTarget.PrivateAttr(config.GazelleImportsKey))
 		} else {
 
 			pyLibrary := newTargetBuilder(getKind(args.Config, pyLibraryKind), targetName, pythonProjectRoot, args.Rel).
