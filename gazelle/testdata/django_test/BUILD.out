@@ -7,17 +7,26 @@ py_library(
     deps = [":foo"],
 )
 
-django_test(
-    name = "__test__",
-    srcs = ["__test__.py"],
-    main = "__test__.py",
-    deps = [
-        ":__init__",
-        "@gazelle_python_test//pypi__django",
-    ],
+py_library(
+    name = "bar",
+    srcs = ["bar.py"],
 )
 
 py_library(
     name = "foo",
     srcs = ["foo.py"],
+)
+
+django_test(
+    name = "django_test",
+    srcs = [
+        "__test__.py",
+        "test_django.py",
+    ],
+    conftest = ":conftest",
+    deps = [
+        ":__init__",
+        ":bar",
+        "@gazelle_python_test//pypi__django",
+    ],
 )

@@ -39,36 +39,41 @@ go_library(
 py_binary(
     name = "parse",
     srcs = ["parse.py"],
+    main = "parse.py",
     visibility = ["//visibility:public"],
 )
 
 py_binary(
     name = "std_modules",
     srcs = ["std_modules.py"],
+    main = "std_modules.py",
     visibility = ["//visibility:public"],
 )
+
 TEST_DEPS = [
-        "@bazel_gazelle//testtools:go_default_library",
-        "@com_github_emirpasic_gods//lists/singlylinkedlist",
-        "@com_github_ghodss_yaml//:yaml",
-        "@io_bazel_rules_go//go/tools/bazel:go_default_library",
-    ]
+    "@bazel_gazelle//testtools:go_default_library",
+    "@com_github_emirpasic_gods//lists/singlylinkedlist",
+    "@com_github_ghodss_yaml//:yaml",
+    "@io_bazel_rules_go//go/tools/bazel:go_default_library",
+]
+
 TEST_DATA = [
-        ":gazelle_python_binary",
-        ":parse",
-        ":std_modules",
-    ]
+    ":gazelle_python_binary",
+    ":parse",
+    ":std_modules",
+]
 
 go_test(
     name = "test_simple",
     srcs = ["python_test.go"],
-    data =  TEST_DATA + glob(["testdata/simple/**"]),
+    data = TEST_DATA + glob(["testdata/simple/**"]),
     deps = TEST_DEPS,
 )
+
 go_test(
     name = "test_django_test",
     srcs = ["python_test.go"],
-    data =  TEST_DATA + glob(["testdata/django_test/**"]),
+    data = TEST_DATA + glob(["testdata/django_test/**"]),
     deps = TEST_DEPS,
 )
 

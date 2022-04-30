@@ -205,6 +205,10 @@ func (py *Resolver) Resolve(
 		for it.Next() {
 			mod := it.Value().(module)
 			if overrides, ok := findRuleWithOverride(c, mod, from, explainDependency, languageName); ok {
+				if mod.Name == "benchsci.sites.reagent.reagents" && mod.LineNumber == 14 {
+
+					fmt.Println(mod)
+				}
 
 				it := overrides.Iterator()
 				for it.Next() {
