@@ -29,6 +29,7 @@ var pyKinds = map[string]rule.KindInfo{
 		},
 		MergeableAttrs: map[string]bool{
 			"srcs": true,
+			"main": true,
 		},
 		ResolveAttrs: map[string]bool{
 			"deps": true,
@@ -60,6 +61,7 @@ var pyKinds = map[string]rule.KindInfo{
 		},
 		MergeableAttrs: map[string]bool{
 			"srcs": true,
+			"main": true,
 		},
 		ResolveAttrs: map[string]bool{
 			"deps": true,
@@ -70,12 +72,14 @@ var pyKinds = map[string]rule.KindInfo{
 		NonEmptyAttrs: map[string]bool{
 			"deps":       true,
 			"main":       true,
+			"conftest":   true,
 			"srcs":       true,
 			"imports":    true,
 			"visibility": true,
 		},
 		MergeableAttrs: map[string]bool{
-			"srcs": true,
+			"srcs":     true,
+			"conftest": true,
 		},
 		ResolveAttrs: map[string]bool{
 			"deps": true,
