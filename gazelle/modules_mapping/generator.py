@@ -18,6 +18,8 @@ class Generator:
     def dig_wheel(self, whl):
         mapping = {}
         wheel_name = get_wheel_name(whl)
+        if wheel_name.endswith(("_stubs", "_types")):
+            mapping[wheel_name.lower()] = wheel_name.lower()
         with zipfile.ZipFile(whl, "r") as zip_file:
             for path in zip_file.namelist():
                 if is_metadata(path):
