@@ -224,6 +224,15 @@ func (py *Resolver) Resolve(
 						dep := matchLabel.String()
 						deps.Add(dep)
 					}
+					typeModule := fmt.Sprintf("%s_types", strings.ToLower(moduleName))
+					if dep, _, ok := cfg.FindThirdPartyDependency(typeModule); ok {
+						deps.Add(dep)
+
+					}
+					stubModule := fmt.Sprintf("%s_stubs", strings.ToLower(moduleName))
+					if dep, _, ok := cfg.FindThirdPartyDependency(stubModule); ok {
+						deps.Add(dep)
+					}
 
 					if explainDependency == dep {
 						log.Printf("Explaining dependency (%s): "+
