@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
+	"github.com/bazelbuild/bazel-gazelle/label"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 	"github.com/emirpasic/gods/sets/treeset"
@@ -25,6 +26,7 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 	if !cfg.ExtensionEnabled() {
 		return language.GenerateResult{}
 	}
+	check_deps := treeset.NewWith(godsutils.StringComparator)
 
 	pythonProjectRoot := cfg.PythonProjectRoot()
 
@@ -65,6 +67,7 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 				addModuleDependencies(deps)
 
 			pyTest := pyTestTarget.build()
+			check_deps.Add(label.Label{Repo: "", Pkg: "", Name: targetName, Relative: true}.String())
 
 			result.Gen = append(result.Gen, pyTest)
 			result.Imports = append(result.Imports, pyTest.PrivateAttr(config.GazelleImportsKey))
@@ -79,6 +82,7 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 
 			result.Gen = append(result.Gen, pyBinary)
 			result.Imports = append(result.Imports, pyBinary.PrivateAttr(config.GazelleImportsKey))
+			check_deps.Add(label.Label{Repo: "", Pkg: "", Name: targetName, Relative: true}.String())
 		} else {
 
 			pyLibrary := newTargetBuilder(getKind(args.Config, pyLibraryKind), targetName, pythonProjectRoot, args.Rel).
@@ -89,8 +93,18 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 
 			result.Gen = append(result.Gen, pyLibrary)
 			result.Imports = append(result.Imports, pyLibrary.PrivateAttr(config.GazelleImportsKey))
+			check_deps.Add(label.Label{Repo: "", Pkg: "", Name: targetName, Relative: true}.String())
 		}
 
+	}
+	if !check_deps.Empty() {
+		pyCheck := newTargetBuilder(getKind(args.Config, pyCheckKind), "check", pythonProjectRoot, args.Rel).
+			setUUID(uuid.Must(uuid.NewUUID()).String()).
+			addSrcs(check_deps).
+			build()
+
+		result.Gen = append(result.Gen, pyCheck)
+		result.Imports = append(result.Imports, pyCheck.PrivateAttr(config.GazelleImportsKey))
 	}
 
 	return result
