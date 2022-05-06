@@ -65,6 +65,12 @@ go_test(
     data =  TEST_DATA + glob(["testdata/simple/**"]),
     deps = TEST_DEPS,
 )
+go_test(
+    name = "test_django_test",
+    srcs = ["python_test.go"],
+    data =  TEST_DATA + glob(["testdata/django_test/**"]),
+    deps = TEST_DEPS,
+)
 
 gazelle_binary(
     name = "gazelle_python_binary",

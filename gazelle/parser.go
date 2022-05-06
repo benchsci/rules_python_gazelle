@@ -130,7 +130,7 @@ func (p *python3Parser) parseMultipe(pyFilenames *treeset.Set) ([]parserOutput, 
 	}
 
 	for _, res := range allRes {
-		modules := treeset.NewWith(linenoComparator)
+		modules := treeset.NewWith(moduleComparator)
 		annotations := annotationsFromComments(res.Comments)
 		rule_type := res.RuleType
 
@@ -168,7 +168,7 @@ func (p *python3Parser) parse(pyFilenames *treeset.Set) (*parserOut, error) {
 	parserMutex.Lock()
 	defer parserMutex.Unlock()
 
-	modules := treeset.NewWith(linenoComparator)
+	modules := treeset.NewWith(moduleComparator)
 
 	req := map[string]interface{}{
 		"repo_root":        p.repoRoot,
@@ -262,12 +262,33 @@ type module struct {
 }
 
 // moduleComparator compares modules by name.
-func moduleComparator(a, b interface{}) int {
-	return godsutils.StringComparator(a.(module).Name, b.(module).Name)
-}
 
 func linenoComparator(a, b interface{}) int {
 	return godsutils.UInt32Comparator(a.(module).LineNumber, b.(module).LineNumber)
+}
+
+// StringComparator provides a fast comparison on strings
+func moduleComparator(a, b interface{}) int {
+	s1 := fmt.Sprintf("%v-%v-%v", a.(module).LineNumber, a.(module).Name, a.(module).SubName)
+	s2 := fmt.Sprintf("%v-%v-%v", b.(module).LineNumber, b.(module).Name, b.(module).SubName)
+	min := len(s2)
+	if len(s1) < len(s2) {
+		min = len(s1)
+	}
+	diff := 0
+	for i := 0; i < min && diff == 0; i++ {
+		diff = int(s1[i]) - int(s2[i])
+	}
+	if diff == 0 {
+		diff = len(s1) - len(s2)
+	}
+	if diff < 0 {
+		return -1
+	}
+	if diff > 0 {
+		return 1
+	}
+	return 0
 }
 
 // annotationKind represents Gazelle annotation kinds.
