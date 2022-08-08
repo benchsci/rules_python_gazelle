@@ -21,6 +21,7 @@ type targetBuilder struct {
 	resolvedDeps      *treeset.Set
 	visibility        *treeset.Set
 	main              *string
+	conftest          *string
 	imports           []string
 }
 
@@ -32,7 +33,7 @@ func newTargetBuilder(kind, name, pythonProjectRoot, bzlPackage string) *targetB
 		pythonProjectRoot: pythonProjectRoot,
 		bzlPackage:        bzlPackage,
 		srcs:              treeset.NewWith(godsutils.StringComparator),
-		deps:              treeset.NewWith(linenoComparator),
+		deps:              treeset.NewWith(moduleComparator),
 		resolvedDeps:      treeset.NewWith(godsutils.StringComparator),
 		visibility:        treeset.NewWith(godsutils.StringComparator),
 	}
@@ -96,6 +97,12 @@ func (t *targetBuilder) setMain(main string) *targetBuilder {
 	return t
 }
 
+// setConftest sets the main file to the target.
+func (t *targetBuilder) setConftest(conftest string) *targetBuilder {
+	t.conftest = &conftest
+	return t
+}
+
 // generateImportsAttribute generates the imports attribute.
 // These are a list of import directories to be added to the PYTHONPATH. In our
 // case, the value we add is on Bazel sub-packages to be able to perform imports
@@ -124,6 +131,9 @@ func (t *targetBuilder) build() *rule.Rule {
 	}
 	if t.main != nil {
 		r.SetAttr("main", *t.main)
+	}
+	if t.conftest != nil {
+		r.SetAttr("conftest", *t.conftest)
 	}
 	if t.imports != nil {
 		r.SetAttr("imports", t.imports)

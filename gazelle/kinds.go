@@ -5,9 +5,10 @@ import (
 )
 
 const (
-	pyBinaryKind  = "py_binary"
-	pyLibraryKind = "py_library"
-	pyTestKind    = "pytest"
+	pyBinaryKind   = "py_binary"
+	pyLibraryKind  = "py_library"
+	pyTestKind     = "pytest"
+	djangoTestKind = "django_test"
 )
 
 // Kinds returns a map that maps rule names (kinds) and information on how to
@@ -28,6 +29,7 @@ var pyKinds = map[string]rule.KindInfo{
 		},
 		MergeableAttrs: map[string]bool{
 			"srcs": true,
+			"main": true,
 		},
 		ResolveAttrs: map[string]bool{
 			"deps": true,
@@ -59,6 +61,25 @@ var pyKinds = map[string]rule.KindInfo{
 		},
 		MergeableAttrs: map[string]bool{
 			"srcs": true,
+			"main": true,
+		},
+		ResolveAttrs: map[string]bool{
+			"deps": true,
+		},
+	},
+	djangoTestKind: {
+		MatchAny: false,
+		NonEmptyAttrs: map[string]bool{
+			"deps":       true,
+			"main":       true,
+			"conftest":   true,
+			"srcs":       true,
+			"imports":    true,
+			"visibility": true,
+		},
+		MergeableAttrs: map[string]bool{
+			"srcs":     true,
+			"conftest": true,
 		},
 		ResolveAttrs: map[string]bool{
 			"deps": true,
@@ -80,6 +101,11 @@ var pyLoads = []rule.LoadInfo{
 			pyBinaryKind,
 			pyLibraryKind,
 			pyTestKind,
+		},
+	}, {
+		Name: "@com_github_benchsci_rules_python_gazelle//:defs.bzl",
+		Symbols: []string{
+			djangoTestKind,
 		},
 	},
 }

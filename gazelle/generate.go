@@ -35,6 +35,9 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 	var result language.GenerateResult
 	result.Gen = make([]*rule.Rule, 0)
 
+	django_test_deps := treeset.NewWith(moduleComparator)
+	django_test_files := treeset.NewWith(godsutils.StringComparator)
+
 	for _, f := range args.RegularFiles {
 		if cfg.IgnoresFile(filepath.Base(f)) {
 			continue
@@ -79,6 +82,13 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 
 			result.Gen = append(result.Gen, pyBinary)
 			result.Imports = append(result.Imports, pyBinary.PrivateAttr(config.GazelleImportsKey))
+		} else if parserOut.RuleType == "django_test" {
+			django_test_files.Add(f)
+			it := deps.Iterator()
+			for it.Next() {
+				django_test_deps.Add(it.Value().(module))
+			}
+
 		} else {
 
 			pyLibrary := newTargetBuilder(getKind(args.Config, pyLibraryKind), targetName, pythonProjectRoot, args.Rel).
@@ -91,6 +101,15 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 			result.Imports = append(result.Imports, pyLibrary.PrivateAttr(config.GazelleImportsKey))
 		}
 
+	}
+	if !django_test_files.Empty() {
+		djangoTestTarget := newTargetBuilder(getKind(args.Config, djangoTestKind), "django_test", pythonProjectRoot, args.Rel).
+			addSrcs(django_test_files).
+			setConftest(cfg.PytestConfTest()).
+			addModuleDependencies(django_test_deps).build()
+
+		result.Gen = append(result.Gen, djangoTestTarget)
+		result.Imports = append(result.Imports, djangoTestTarget.PrivateAttr(config.GazelleImportsKey))
 	}
 
 	return result

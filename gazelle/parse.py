@@ -49,6 +49,12 @@ def check_type(content, filename):
     # Check if there is indentation level 0 code that launches a function.
     # Benchsci doesn't support filename.endswith("_test.py"):
     if filename.startswith(("test_", "__test")):
+        django_test = re.findall(
+            r"from django\.test import.*TestCase|pytest\.mark\.django_db|gazelle: django_test",
+            content,
+        )
+        if len(django_test) > 0:
+            return "django_test"
         return "py_test"
 
     entrypoints = re.findall("\nif\s*__name__\s*==\s*[\"']__main__[\"']\s*:", content)

@@ -49,6 +49,8 @@ const (
 	// naming convention. See python_library_naming_convention for more info on
 	// the package name interpolation.
 	TestNamingConvention = "python_test_naming_convention"
+
+	PytestConfTest = "pytest_conftest"
 )
 
 // GenerationModeType represents one of the generation modes for the Python
@@ -97,6 +99,7 @@ type Config struct {
 	extensionEnabled  bool
 	repoRoot          string
 	pythonProjectRoot string
+	pytestConfTest    string
 	gazelleManifest   *manifest.Manifest
 
 	excludedPatterns         *singlylinkedlist.List
@@ -126,6 +129,7 @@ func New(
 		libraryNamingConvention:  packageNameNamingConventionSubstitution,
 		binaryNamingConvention:   fmt.Sprintf("%s_bin", packageNameNamingConventionSubstitution),
 		testNamingConvention:     fmt.Sprintf("%s_test", packageNameNamingConventionSubstitution),
+		pytestConfTest:           ":conftest",
 	}
 }
 
@@ -150,6 +154,7 @@ func (c *Config) NewChild() *Config {
 		libraryNamingConvention:  c.libraryNamingConvention,
 		binaryNamingConvention:   c.binaryNamingConvention,
 		testNamingConvention:     c.testNamingConvention,
+		pytestConfTest:           c.pytestConfTest,
 	}
 }
 
@@ -182,6 +187,16 @@ func (c *Config) SetPythonProjectRoot(pythonProjectRoot string) {
 // PythonProjectRoot returns the Python project root.
 func (c *Config) PythonProjectRoot() string {
 	return c.pythonProjectRoot
+}
+
+// SetPytestConfTest sets the conftest file
+func (c *Config) SetPytestConfTest(pytestConfTest string) {
+	c.pytestConfTest = pytestConfTest
+}
+
+// PythonProjectRoot returns the conftest.
+func (c *Config) PytestConfTest() string {
+	return c.pytestConfTest
 }
 
 // SetGazelleManifest sets the Gazelle manifest parsed from the
