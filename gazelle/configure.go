@@ -49,6 +49,7 @@ func (py *Configurer) KnownDirectives() []string {
 		pythonconfig.BinaryNamingConvention,
 		pythonconfig.TestNamingConvention,
 		pythonconfig.PytestConfTest,
+		pythonconfig.PyCheck,
 	}
 }
 
@@ -100,6 +101,17 @@ func (py *Configurer) Configure(c *config.Config, rel string, f *rule.File) {
 			default:
 				err := fmt.Errorf("invalid value for directive %q: %s: possible values are enabled/disabled",
 					pythonconfig.PythonExtensionDirective, d.Value)
+				log.Fatal(err)
+			}
+		case pythonconfig.PyCheck:
+			switch d.Value {
+			case "enabled":
+				config.SetPyCheck(d.Value)
+			case "disabled":
+				config.SetPyCheck(d.Value)
+			default:
+				err := fmt.Errorf("invalid value for directive %q: %s: possible values are enabled/disabled",
+					pythonconfig.PyCheck, d.Value)
 				log.Fatal(err)
 			}
 		case pythonconfig.PythonRootDirective:

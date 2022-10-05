@@ -9,6 +9,7 @@ const (
 	pyLibraryKind  = "py_library"
 	pyTestKind     = "pytest"
 	djangoTestKind = "django_test"
+	pyCheckKind    = "py_check"
 )
 
 // Kinds returns a map that maps rule names (kinds) and information on how to
@@ -48,6 +49,16 @@ var pyKinds = map[string]rule.KindInfo{
 		},
 		ResolveAttrs: map[string]bool{
 			"deps": true,
+		},
+	},
+	pyCheckKind: {
+		MatchAny: false,
+		NonEmptyAttrs: map[string]bool{
+			"srcs":       true,
+			"visibility": true,
+		},
+		MergeableAttrs: map[string]bool{
+			"srcs": true,
 		},
 	},
 	pyTestKind: {
@@ -103,9 +114,10 @@ var pyLoads = []rule.LoadInfo{
 			pyTestKind,
 		},
 	}, {
-		Name: "@com_github_benchsci_rules_python_gazelle//:defs.bzl",
+		Name: "@com_github_benchsci_rules_python_gazelle:defs.bzl",
 		Symbols: []string{
 			djangoTestKind,
+			pyCheckKind,
 		},
 	},
 }
