@@ -31,6 +31,8 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 	pythonProjectRoot := cfg.PythonProjectRoot()
 
 	pyFilenames := treeset.NewWith(godsutils.StringComparator)
+	pyLibrarySources := treeset.NewWith(godsutils.StringComparator)
+	pyLibraryDeps := treeset.NewWith(moduleComparator)
 
 	parser0 := newPython3Parser(args.Config.RepoRoot, args.Rel, cfg.IgnoresDependency)
 
@@ -74,6 +76,7 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 
 			result.Gen = append(result.Gen, pyTest)
 			result.Imports = append(result.Imports, pyTest.PrivateAttr(config.GazelleImportsKey))
+
 		} else if parserOut.RuleType == "py_binary" {
 
 			pyBinaryTarget := newTargetBuilder(getKind(args.Config, pyBinaryKind), targetName, pythonProjectRoot, args.Rel).
@@ -95,16 +98,38 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 
 		} else {
 
-			pyLibrary := newTargetBuilder(getKind(args.Config, pyLibraryKind), targetName, pythonProjectRoot, args.Rel).
-				setUUID(uuid.Must(uuid.NewUUID()).String()).
-				addSrc(f).
-				addModuleDependencies(deps).
-				build()
+			if !cfg.PyModule() {
 
-			result.Gen = append(result.Gen, pyLibrary)
-			result.Imports = append(result.Imports, pyLibrary.PrivateAttr(config.GazelleImportsKey))
-			check_deps.Add(label.Label{Repo: "", Pkg: "", Name: targetName, Relative: true}.String())
+				pyLibrary := newTargetBuilder(getKind(args.Config, pyLibraryKind), targetName, pythonProjectRoot, args.Rel).
+					setUUID(uuid.Must(uuid.NewUUID()).String()).
+					addSrc(f).
+					addModuleDependencies(deps).
+					build()
+
+				result.Gen = append(result.Gen, pyLibrary)
+				result.Imports = append(result.Imports, pyLibrary.PrivateAttr(config.GazelleImportsKey))
+				check_deps.Add(label.Label{Repo: "", Pkg: "", Name: targetName, Relative: true}.String())
+			} else {
+
+				it := deps.Iterator()
+				for it.Next() {
+					pyLibraryDeps.Add(it.Value().(module))
+				}
+				pyLibrarySources.Add(f)
+			}
 		}
+
+	}
+	if !pyLibrarySources.Empty() {
+		targetName := filepath.Base(args.Dir)
+		pyLibrary := newTargetBuilder(getKind(args.Config, pyLibraryKind), targetName, pythonProjectRoot, args.Rel).
+			setUUID(uuid.Must(uuid.NewUUID()).String()).
+			addSrcs(pyLibrarySources).
+			addModuleDependencies(pyLibraryDeps).
+			build()
+
+		result.Gen = append(result.Gen, pyLibrary)
+		result.Imports = append(result.Imports, pyLibrary.PrivateAttr(config.GazelleImportsKey))
 
 	}
 	if !django_test_files.Empty() {
