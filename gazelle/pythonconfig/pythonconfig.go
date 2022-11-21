@@ -52,6 +52,7 @@ const (
 
 	PytestConfTest = "pytest_conftest"
 	PyCheck        = "py_check"
+	PyModule       = "py_module"
 )
 
 // GenerationModeType represents one of the generation modes for the Python
@@ -98,6 +99,7 @@ type Config struct {
 	parent *Config
 
 	extensionEnabled  bool
+	pyModule          bool
 	pyCheck           string
 	repoRoot          string
 	pythonProjectRoot string
@@ -121,6 +123,7 @@ func New(
 ) *Config {
 	return &Config{
 		extensionEnabled:         true,
+		pyModule:                 false,
 		pyCheck:                  "",
 		repoRoot:                 repoRoot,
 		pythonProjectRoot:        pythonProjectRoot,
@@ -158,6 +161,8 @@ func (c *Config) NewChild() *Config {
 		binaryNamingConvention:   c.binaryNamingConvention,
 		testNamingConvention:     c.testNamingConvention,
 		pytestConfTest:           c.pytestConfTest,
+		pyCheck:                  c.pyCheck,
+		pyModule:                 c.pyModule,
 	}
 }
 
@@ -175,6 +180,14 @@ func (c *Config) ExcludedPatterns() *singlylinkedlist.List {
 // SetExtensionEnabled sets whether the extension is enabled or not.
 func (c *Config) SetExtensionEnabled(enabled bool) {
 	c.extensionEnabled = enabled
+}
+
+func (c *Config) PyModule() bool {
+	return c.pyModule
+}
+
+func (c *Config) SetPyModule(enabled bool) {
+	c.pyModule = enabled
 }
 
 // ExtensionEnabled returns whether the extension is enabled or not.

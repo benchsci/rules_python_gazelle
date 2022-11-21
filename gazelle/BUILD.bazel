@@ -74,6 +74,7 @@ TEST_DATA = [
         "simple",
         "django_test",
         "pycheck",
+        "py_module",
     ]
 ]
 
