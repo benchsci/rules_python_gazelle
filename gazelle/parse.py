@@ -6,8 +6,8 @@ import ast
 import concurrent.futures
 import json
 import os
-import sys
 import re
+import sys
 from io import BytesIO
 from tokenize import COMMENT, tokenize
 
@@ -58,8 +58,6 @@ def check_type(content, filename):
         return "py_test"
 
     entrypoints = re.findall("\nif\s*__name__\s*==\s*[\"']__main__[\"']\s*:", content)
-    # Check binary without main
-    entrypoints += re.findall("\n\S+\([\S+]?\)", content)
     if len(entrypoints) > 0:
         return "py_binary"
     return "py_library"

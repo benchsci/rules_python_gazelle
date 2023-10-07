@@ -6,4 +6,5 @@ def main():
     foo()
 
 
-main()
+if __name__ == "__main__":
+    main()
