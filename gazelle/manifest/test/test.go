@@ -1,63 +1,78 @@
+// Copyright 2023 The Bazel Authors. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 /*
-test.go is a program that asserts the Gazelle YAML manifest is up-to-date in
+test.go is a unit test that asserts the Gazelle YAML manifest is up-to-date in
 regards to the requirements.txt.
 
 It re-hashes the requirements.txt and compares it to the recorded one in the
 existing generated Gazelle manifest.
 */
-package main
+package test
 
 import (
-	"flag"
-	"log"
+	"os"
 	"path/filepath"
+	"testing"
 
 	"github.com/benchsci/rules_python_gazelle/gazelle/manifest"
 )
 
-func main() {
-	var requirementsPath string
-	var manifestPath string
-	flag.StringVar(
-		&requirementsPath,
-		"requirements",
-		"",
-		"The requirements.txt file.")
-	flag.StringVar(
-		&manifestPath,
-		"manifest",
-		"",
-		"The manifest YAML file.")
-	flag.Parse()
-
+func TestGazelleManifestIsUpdated(t *testing.T) {
+	requirementsPath := os.Getenv("_TEST_REQUIREMENTS")
 	if requirementsPath == "" {
-		log.Fatalln("ERROR: --requirements must be set")
+		t.Fatalf("_TEST_REQUIREMENTS must be set")
 	}
 
+	manifestPath := os.Getenv("_TEST_MANIFEST")
 	if manifestPath == "" {
-		log.Fatalln("ERROR: --manifest must be set")
+		t.Fatalf("_TEST_MANIFEST must be set")
 	}
 
 	manifestFile := new(manifest.File)
 	if err := manifestFile.Decode(manifestPath); err != nil {
-		log.Fatalf("ERROR: %v\n", err)
+		t.Fatalf("decoding manifest file: %v", err)
 	}
 
 	if manifestFile.Integrity == "" {
-		log.Fatalln("ERROR: failed to find the Gazelle manifest file integrity")
+		t.Fatal("failed to find the Gazelle manifest file integrity")
 	}
 
-	valid, err := manifestFile.VerifyIntegrity(requirementsPath)
+	manifestGeneratorHashPath := os.Getenv("_TEST_MANIFEST_GENERATOR_HASH")
+	manifestGeneratorHash, err := os.Open(manifestGeneratorHashPath)
 	if err != nil {
-		log.Fatalf("ERROR: %v\n", err)
+		t.Fatalf("opening %q: %v", manifestGeneratorHashPath, err)
+	}
+	defer manifestGeneratorHash.Close()
+
+	requirements, err := os.Open(requirementsPath)
+	if err != nil {
+		t.Fatalf("opening %q: %v", requirementsPath, err)
+	}
+	defer requirements.Close()
+
+	valid, err := manifestFile.VerifyIntegrity(manifestGeneratorHash, requirements)
+	if err != nil {
+		t.Fatalf("verifying integrity: %v", err)
 	}
 	if !valid {
 		manifestRealpath, err := filepath.EvalSymlinks(manifestPath)
 		if err != nil {
-			log.Fatalf("ERROR: %v\n", err)
+			t.Fatalf("evaluating symlink %q: %v", manifestPath, err)
 		}
-		log.Fatalf(
-			"ERROR: %q is out-of-date, follow the intructions on this file for updating.\n",
+		t.Errorf(
+			"%q is out-of-date. Follow the update instructions in that file to resolve this",
 			manifestRealpath)
 	}
 }

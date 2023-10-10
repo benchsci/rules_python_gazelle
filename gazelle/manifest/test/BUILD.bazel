@@ -1,17 +1,9 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+# gazelle:ignore
 
-go_library(
-    name = "test_lib",
-    srcs = ["test.go"],
-    importpath = "github.com/benchsci/rules_python_gazelle/gazelle/manifest/test",
-    visibility = ["//visibility:public"],
-    deps = ["//gazelle/manifest"],
+exports_files(["test.go"])
+
+filegroup(
+    name = "distribution",
+    srcs = glob(["**"]),
+    visibility = ["@com_github_benchsci_rules_python_gazelle//gazelle/manifest:__pkg__"],
 )
-
-go_binary(
-    name = "test",
-    embed = [":test_lib"],
-    visibility = ["//visibility:public"],
-)
-
-exports_files(["run.sh"])
