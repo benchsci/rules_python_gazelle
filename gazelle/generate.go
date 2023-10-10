@@ -41,6 +41,8 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 
 	django_test_deps := treeset.NewWith(moduleComparator)
 	django_test_files := treeset.NewWith(godsutils.StringComparator)
+	test_deps := treeset.NewWith(moduleComparator)
+	test_files := treeset.NewWith(godsutils.StringComparator)
 
 	for _, f := range args.RegularFiles {
 		if cfg.IgnoresFile(filepath.Base(f)) {
@@ -65,17 +67,11 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 		targetName := strings.TrimSuffix(f, ext)
 
 		if parserOut.RuleType == "py_test" {
-
-			pyTestTarget := newTargetBuilder(getKind(args.Config, pyTestKind), targetName, pythonProjectRoot, args.Rel).
-				addSrc(f).
-				setMain(f).
-				addModuleDependencies(deps)
-
-			pyTest := pyTestTarget.build()
-			check_deps.Add(label.Label{Repo: "", Pkg: "", Name: targetName, Relative: true}.String())
-
-			result.Gen = append(result.Gen, pyTest)
-			result.Imports = append(result.Imports, pyTest.PrivateAttr(config.GazelleImportsKey))
+			test_files.Add(f)
+			it := deps.Iterator()
+			for it.Next() {
+				test_deps.Add(it.Value().(module))
+			}
 
 		} else if parserOut.RuleType == "py_binary" {
 
@@ -141,6 +137,16 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 		result.Gen = append(result.Gen, djangoTestTarget)
 		result.Imports = append(result.Imports, djangoTestTarget.PrivateAttr(config.GazelleImportsKey))
 		check_deps.Add(label.Label{Repo: "", Pkg: "", Name: "django_test", Relative: true}.String())
+	}
+	if !test_files.Empty() {
+		pyTestTarget := newTargetBuilder(getKind(args.Config, pyTestKind), "py_test", pythonProjectRoot, args.Rel).
+			addSrcs(test_files).
+			addModuleDependencies(test_deps).build()
+
+		result.Gen = append(result.Gen, pyTestTarget)
+		result.Imports = append(result.Imports, pyTestTarget.PrivateAttr(config.GazelleImportsKey))
+		check_deps.Add(label.Label{Repo: "", Pkg: "", Name: "py_test", Relative: true}.String())
+
 	}
 	if !check_deps.Empty() && cfg.PyCheck() == "enabled" {
 		pyCheck := newTargetBuilder(getKind(args.Config, pyCheckKind), "check", pythonProjectRoot, args.Rel).
