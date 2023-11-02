@@ -15,6 +15,12 @@ go_library(
         "std_modules.go",
         "target.go",
     ],
+    data = [
+        ":helper.zip",
+        ":parse",
+        ":std_modules",
+    ],
+    embedsrcs = [":helper.zip"],
     importpath = "github.com/benchsci/rules_python_gazelle/gazelle",
     visibility = ["//visibility:public"],
     deps = [
@@ -48,6 +54,15 @@ py_binary(
     srcs = ["std_modules.py"],
     main = "std_modules.py",
     visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "helper.zip",
+    srcs = [
+        ":parse",
+        ":std_modules",
+    ],
+    output_group = "python_zip_file",
 )
 
 TEST_DEPS = [
