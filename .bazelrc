@@ -1,0 +1,4 @@
+# Print results from tests
+build --test_output=all
+build --test_summary=terse
+build --incompatible_default_to_explicit_init_py

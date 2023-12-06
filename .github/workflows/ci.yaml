@@ -32,4 +32,4 @@ jobs:
               env:
                   # Bazelisk will download bazel to here
                   XDG_CACHE_HOME: ~/.cache/bazel-repo
-              run: bazel test //...
+              run: bazel test //... --jobs 2 # limit number of jobs to prevent broken pipe error

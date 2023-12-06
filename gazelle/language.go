@@ -9,6 +9,7 @@ import (
 type Python struct {
 	Configurer
 	Resolver
+	LifeCycleManager
 }
 
 // NewLanguage initializes a new Python that satisfies the language.Language

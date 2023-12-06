@@ -1,6 +1,7 @@
 import pathlib
-from generator import Generator
 import unittest
+
+from generator import Generator
 
 
 class GeneratorTest(unittest.TestCase):
@@ -28,7 +29,10 @@ class GeneratorTest(unittest.TestCase):
         gen = Generator(None, None)
         mapping = gen.dig_wheel(whl)
         self.assertLessEqual(
-            {"django_types": "django_types",}.items(), mapping.items(),
+            {
+                "django_types": "django_types",
+            }.items(),
+            mapping.items(),
         )
 
 
