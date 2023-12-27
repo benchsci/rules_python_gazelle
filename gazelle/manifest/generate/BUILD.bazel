@@ -6,7 +6,7 @@ go_library(
     srcs = ["generate.go"],
     importpath = "github.com/benchsci/rules_python_gazelle/gazelle/manifest/generate",
     visibility = ["//visibility:public"],
-    deps = ["@com_github_benchsci_rules_python_gazelle//gazelle/manifest"],
+    deps = ["//gazelle/manifest"],
 )
 
 sources_hash(

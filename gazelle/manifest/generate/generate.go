@@ -66,7 +66,7 @@ func main() {
 	flag.BoolVar(
 		&usePipRepositoryAliases,
 		"use-pip-repository-aliases",
-		false,
+		true,
 		"Whether to use the pip-repository aliases, which are generated when passing 'incompatible_generate_aliases = True'.")
 	flag.StringVar(
 		&modulesMappingPath,
@@ -111,8 +111,7 @@ func main() {
 	manifestFile := manifest.NewFile(&manifest.Manifest{
 		ModulesMapping: modulesMapping,
 		PipRepository: &manifest.PipRepository{
-			Name:                    pipRepositoryName,
-			UsePipRepositoryAliases: usePipRepositoryAliases,
+			Name: pipRepositoryName,
 		},
 	})
 	if err := writeOutput(

@@ -25,7 +25,7 @@ def gazelle_python_manifest(
         pip_repository_name = "",
         pip_deps_repository_name = "",
         manifest = ":gazelle_python.yaml",
-        use_pip_repository_aliases = False,
+        use_pip_repository_aliases = True,
         **kwargs):
     """A macro for defining the updating and testing targets for the Gazelle manifest file.
 
