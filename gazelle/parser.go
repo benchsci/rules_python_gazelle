@@ -3,6 +3,7 @@ package python
 import (
 	"bufio"
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,58 +13,52 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
-	"github.com/bazelbuild/rules_go/go/tools/bazel"
 	"github.com/emirpasic/gods/sets/treeset"
 	godsutils "github.com/emirpasic/gods/utils"
 )
 
 var (
-	parserStdin  io.Writer
+	parserCmd    *exec.Cmd
+	parserStdin  io.WriteCloser
 	parserStdout io.Reader
 	parserMutex  sync.Mutex
 )
 
-func init() {
-	parseScriptRunfile, err := bazel.Runfile("gazelle/parse")
-	if err != nil {
-		log.Printf("failed to initialize parser: %v\n", err)
-		os.Exit(1)
-	}
+func startParserProcess(ctx context.Context) {
+	// due to #691, we need a system interpreter to boostrap, part of which is
+	// to locate the hermetic interpreter.
+	parserCmd = exec.CommandContext(ctx, "python3", helperPath, "parse")
+	parserCmd.Stderr = os.Stderr
 
-	ctx := context.Background()
-	ctx, parserCancel := context.WithTimeout(ctx, time.Minute*5)
-	cmd := exec.CommandContext(ctx, parseScriptRunfile)
-
-	cmd.Stderr = os.Stderr
-
-	stdin, err := cmd.StdinPipe()
+	stdin, err := parserCmd.StdinPipe()
 	if err != nil {
 		log.Printf("failed to initialize parser: %v\n", err)
 		os.Exit(1)
 	}
 	parserStdin = stdin
 
-	stdout, err := cmd.StdoutPipe()
+	stdout, err := parserCmd.StdoutPipe()
 	if err != nil {
 		log.Printf("failed to initialize parser: %v\n", err)
 		os.Exit(1)
 	}
 	parserStdout = stdout
 
-	if err := cmd.Start(); err != nil {
+	if err := parserCmd.Start(); err != nil {
 		log.Printf("failed to initialize parser: %v\n", err)
 		os.Exit(1)
 	}
+}
 
-	go func() {
-		defer parserCancel()
-		if err := cmd.Wait(); err != nil {
-			log.Printf("failed to wait for parser: %v\n", err)
-			os.Exit(1)
-		}
-	}()
+func shutdownParserProcess() {
+	if err := parserStdin.Close(); err != nil {
+		fmt.Fprintf(os.Stderr, "error closing parser: %v", err)
+	}
+
+	if err := parserCmd.Wait(); err != nil {
+		log.Printf("failed to wait for parser: %v\n", err)
+	}
 }
 
 // python3Parser implements a parser for Python files that extracts the modules

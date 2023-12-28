@@ -10,11 +10,13 @@ go_library(
         "generate.go",
         "kinds.go",
         "language.go",
+        "lifecycle.go",
         "parser.go",
         "resolve.go",
         "std_modules.go",
         "target.go",
     ],
+    embedsrcs = [":helper.zip"],  # keep
     importpath = "github.com/benchsci/rules_python_gazelle/gazelle",
     visibility = ["//visibility:public"],
     deps = [
@@ -48,6 +50,25 @@ py_binary(
     srcs = ["std_modules.py"],
     main = "std_modules.py",
     visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "helper",
+    srcs = [
+        "__main__.py",
+        "parse.py",
+        "std_modules.py",
+    ],
+    # This is to make sure that the current directory is added to PYTHONPATH
+    imports = ["."],
+    main = "__main__.py",
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "helper.zip",
+    srcs = [":helper"],
+    output_group = "python_zip_file",
 )
 
 TEST_DEPS = [

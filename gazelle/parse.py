@@ -9,6 +9,7 @@ import os
 import re
 import sys
 from io import BytesIO
+from multiprocessing import cpu_count
 from tokenize import COMMENT, tokenize
 
 
@@ -88,7 +89,9 @@ def parse(repo_root, rel_package_path, filename):
 
 
 def main(stdin, stdout):
-    with concurrent.futures.ProcessPoolExecutor() as executor:
+    with concurrent.futures.ProcessPoolExecutor(
+        max_workers=max(cpu_count() - 1, 1)
+    ) as executor:
         for parse_request in stdin:
             parse_request = json.loads(parse_request)
             repo_root = parse_request["repo_root"]
