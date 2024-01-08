@@ -27,6 +27,6 @@ django_test(
     deps = [
         ":__init__",
         ":bar",
-        "@gazelle_python_test//pypi__django",
+        "@gazelle_python_test//django",
     ],
 )
