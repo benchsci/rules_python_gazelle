@@ -15,7 +15,10 @@ from tokenize import COMMENT, tokenize
 
 def parse_import_statements(content, filepath):
     modules = list()
-    tree = ast.parse(content)
+    try:
+        tree = ast.parse(content)
+    except:
+        raise Exception(f"Failed to parse {filepath}")
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for subnode in node.names:
@@ -68,7 +71,10 @@ def parse(repo_root, rel_package_path, filename):
     rel_filepath = os.path.join(rel_package_path, filename)
     abs_filepath = os.path.join(repo_root, rel_filepath)
     with open(abs_filepath, "r") as file:
-        content = file.read()
+        try:
+            content = file.read()
+        except:
+            raise Exception(f"Failed to read {abs_filepath}")
         # From simple benchmarks, 2 workers gave the best performance here.
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
             modules_future = executor.submit(

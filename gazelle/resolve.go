@@ -290,8 +290,8 @@ func (py *Resolver) Resolve(
 			}
 		}
 		if hasFatalError {
-			//os.Exit(1)
 			fmt.Print(hasFatalError)
+			os.Exit(1)
 		}
 	}
 	resolvedDeps := r.PrivateAttr(resolvedDepsKey).(*treeset.Set)
