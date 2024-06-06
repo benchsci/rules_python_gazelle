@@ -12,6 +12,11 @@ py_binary(
     main = "__main__.py",
 )
 
+py_library(
+    name = "foo",
+    srcs = ["foo.py"],
+)
+
 pytest(
     name = "__test__",
     srcs = ["__test__.py"],
@@ -20,9 +25,4 @@ pytest(
         ":__init__",
         ":__main__",
     ],
-)
-
-py_library(
-    name = "foo",
-    srcs = ["foo.py"],
 )
