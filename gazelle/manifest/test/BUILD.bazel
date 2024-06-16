@@ -1,9 +1,0 @@
-# gazelle:ignore
-
-exports_files(["test.go"])
-
-filegroup(
-    name = "distribution",
-    srcs = glob(["**"]),
-    visibility = ["@com_github_benchsci_rules_python_gazelle//gazelle/manifest:__pkg__"],
-)

@@ -1,20 +1,26 @@
-module github.com/benchsci/rules_python_gazelle
+module github.com/benchsci/rules_python_gazelle/gazelle
 
 go 1.19
 
 require (
-	github.com/bazelbuild/bazel-gazelle v0.33.0
-	github.com/bazelbuild/buildtools v0.0.0-20230831140646-386244e73fc4
+	github.com/bazelbuild/bazel-gazelle v0.31.1
+	github.com/bazelbuild/buildtools v0.0.0-20231103205921-433ea8554e82
 	github.com/bazelbuild/rules_go v0.41.0
-	github.com/emirpasic/gods v1.12.0
+	github.com/bmatcuk/doublestar/v4 v4.6.1
+	github.com/emirpasic/gods v1.18.1
 	github.com/ghodss/yaml v1.0.0
-	github.com/google/uuid v1.3.0
-	gopkg.in/yaml.v2 v2.2.8
+	github.com/smacker/go-tree-sitter v0.0.0-20240422154435-0628b34cbf9c
+	github.com/stretchr/testify v1.9.0
+	golang.org/x/sync v0.2.0
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
-	github.com/kr/pretty v0.1.0 // indirect
-	golang.org/x/mod v0.12.0 // indirect
-	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	golang.org/x/mod v0.10.0 // indirect
+	golang.org/x/sys v0.8.0 // indirect
+	golang.org/x/tools v0.9.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

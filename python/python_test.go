@@ -23,8 +23,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,19 +32,17 @@ import (
 
 	"github.com/bazelbuild/bazel-gazelle/testtools"
 	"github.com/bazelbuild/rules_go/go/tools/bazel"
-	"github.com/emirpasic/gods/lists/singlylinkedlist"
 	"github.com/ghodss/yaml"
 )
 
 const (
-	extensionDir      = "gazelle/"
-	testDataPath      = extensionDir + "testdata/"
+	extensionDir      = "python" + string(os.PathSeparator)
+	testDataPath      = extensionDir + "testdata" + string(os.PathSeparator)
 	gazelleBinaryName = "gazelle_binary"
 )
 
-var gazellePath = mustFindGazelle()
-
 func TestGazelleBinary(t *testing.T) {
+	gazellePath := mustFindGazelle()
 	tests := map[string][]bazel.RunfileEntry{}
 
 	runfiles, err := bazel.ListRunfiles()
@@ -56,7 +52,7 @@ func TestGazelleBinary(t *testing.T) {
 	for _, f := range runfiles {
 		if strings.HasPrefix(f.ShortPath, testDataPath) {
 			relativePath := strings.TrimPrefix(f.ShortPath, testDataPath)
-			parts := strings.SplitN(relativePath, "/", 2)
+			parts := strings.SplitN(relativePath, string(os.PathSeparator), 2)
 			if len(parts) < 2 {
 				// This file is not a part of a testcase since it must be in a dir that
 				// is the test case and then have a path inside of that.
@@ -69,21 +65,20 @@ func TestGazelleBinary(t *testing.T) {
 	if len(tests) == 0 {
 		t.Fatal("no tests found")
 	}
-
 	for testName, files := range tests {
-		testPath(t, testName, files)
+		testPath(t, gazellePath, testName, files)
 	}
 }
 
-func testPath(t *testing.T, name string, files []bazel.RunfileEntry) {
+func testPath(t *testing.T, gazellePath, name string, files []bazel.RunfileEntry) {
 	t.Run(name, func(t *testing.T) {
-		var inputs []testtools.FileSpec
-		var goldens []testtools.FileSpec
+		t.Parallel()
+		var inputs, goldens []testtools.FileSpec
 
 		var config *testYAML
 		for _, f := range files {
 			path := f.Path
-			trim := testDataPath + name + "/"
+			trim := filepath.Join(testDataPath, name) + string(os.PathSeparator)
 			shortPath := strings.TrimPrefix(f.ShortPath, trim)
 			info, err := os.Stat(path)
 			if err != nil {
@@ -94,9 +89,9 @@ func testPath(t *testing.T, name string, files []bazel.RunfileEntry) {
 				continue
 			}
 
-			content, err := ioutil.ReadFile(path)
+			content, err := os.ReadFile(path)
 			if err != nil {
-				t.Errorf("ioutil.ReadFile(%q) error: %v", path, err)
+				t.Errorf("os.ReadFile(%q) error: %v", path, err)
 			}
 
 			if filepath.Base(shortPath) == "test.yaml" {
@@ -114,43 +109,49 @@ func testPath(t *testing.T, name string, files []bazel.RunfileEntry) {
 					Path:    filepath.Join(name, strings.TrimSuffix(shortPath, ".in")),
 					Content: string(content),
 				})
-			} else if strings.HasSuffix(shortPath, ".out") {
+				continue
+			}
+
+			if strings.HasSuffix(shortPath, ".out") {
 				goldens = append(goldens, testtools.FileSpec{
 					Path:    filepath.Join(name, strings.TrimSuffix(shortPath, ".out")),
 					Content: string(content),
 				})
-			} else {
-				inputs = append(inputs, testtools.FileSpec{
-					Path:    filepath.Join(name, shortPath),
-					Content: string(content),
-				})
-				goldens = append(goldens, testtools.FileSpec{
-					Path:    filepath.Join(name, shortPath),
-					Content: string(content),
-				})
+				continue
 			}
+
+			inputs = append(inputs, testtools.FileSpec{
+				Path:    filepath.Join(name, shortPath),
+				Content: string(content),
+			})
+			goldens = append(goldens, testtools.FileSpec{
+				Path:    filepath.Join(name, shortPath),
+				Content: string(content),
+			})
 		}
 
 		testdataDir, cleanup := testtools.CreateFiles(t, inputs)
-		defer cleanup()
-		defer func() {
-			if t.Failed() {
-				filepath.Walk(testdataDir, func(path string, info os.FileInfo, err error) error {
-					if err != nil {
-						return err
-					}
-					// t.Logf("%q exists", strings.TrimPrefix(path, testdataDir))
-					return nil
-				})
+		t.Cleanup(cleanup)
+		t.Cleanup(func() {
+			if !t.Failed() {
+				return
 			}
-		}()
+
+			filepath.Walk(testdataDir, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				t.Logf("%q exists", strings.TrimPrefix(path, testdataDir))
+				return nil
+			})
+		})
 
 		workspaceRoot := filepath.Join(testdataDir, name)
 
 		args := []string{"-build_file_name=BUILD,BUILD.bazel"}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
+		t.Cleanup(cancel)
 		cmd := exec.CommandContext(ctx, gazellePath, args...)
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
@@ -162,31 +163,23 @@ func testPath(t *testing.T, name string, files []bazel.RunfileEntry) {
 				t.Fatal(err)
 			}
 		}
-		errs := singlylinkedlist.New()
+
 		actualExitCode := cmd.ProcessState.ExitCode()
 		if config.Expect.ExitCode != actualExitCode {
-			errs.Add(fmt.Errorf("expected gazelle exit code: %d\ngot: %d",
-				config.Expect.ExitCode, actualExitCode,
-			))
+			t.Errorf("expected gazelle exit code: %d\ngot: %d",
+				config.Expect.ExitCode, actualExitCode)
 		}
 		actualStdout := stdout.String()
 		if strings.TrimSpace(config.Expect.Stdout) != strings.TrimSpace(actualStdout) {
-			errs.Add(fmt.Errorf("expected gazelle stdout: %s\ngot: %s",
-				config.Expect.Stdout, actualStdout,
-			))
+			t.Errorf("expected gazelle stdout: %s\ngot: %s",
+				config.Expect.Stdout, actualStdout)
 		}
 		actualStderr := stderr.String()
 		if strings.TrimSpace(config.Expect.Stderr) != strings.TrimSpace(actualStderr) {
-			errs.Add(fmt.Errorf("expected gazelle stderr: %s\ngot: %s",
-				config.Expect.Stderr, actualStderr,
-			))
+			t.Errorf("expected gazelle stderr: %s\ngot: %s",
+				config.Expect.Stderr, actualStderr)
 		}
-		if !errs.Empty() {
-			errsIt := errs.Iterator()
-			for errsIt.Next() {
-				err := errsIt.Value().(error)
-				t.Log(err)
-			}
+		if t.Failed() {
 			t.FailNow()
 		}
 
@@ -195,7 +188,7 @@ func testPath(t *testing.T, name string, files []bazel.RunfileEntry) {
 }
 
 func mustFindGazelle() string {
-	gazellePath, ok := bazel.FindBinary("python", gazelleBinaryName)
+	gazellePath, ok := bazel.FindBinary(extensionDir, gazelleBinaryName)
 	if !ok {
 		panic("could not find gazelle binary")
 	}
