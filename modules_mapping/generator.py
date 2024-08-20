@@ -96,7 +96,7 @@ class Generator:
 
 
 def get_wheel_name(path):
-    pp = pathlib.PurePath(path)
+    pp = pathlib.Path(path)
     if pp.suffix != ".whl":
         raise RuntimeError(
             "{} is not a valid wheel file name: the wheel doesn't follow ".format(
@@ -104,6 +104,10 @@ def get_wheel_name(path):
             )
             + "https://www.python.org/dev/peps/pep-0427/#file-name-convention"
         )
+    if pathlib.Path(pp.resolve().as_posix() + ".name").exists():
+        with pathlib.Path(pp.resolve().as_posix() + ".name").open() as f:
+            pp = f.read().strip()
+            return pp[: pp.find("-")]
     return pp.name[: pp.name.find("-")]
 
 
