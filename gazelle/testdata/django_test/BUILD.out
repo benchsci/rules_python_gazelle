@@ -1,5 +1,5 @@
-load("@rules_python//python:defs.bzl", "py_library")
 load("@com_github_benchsci_rules_python_gazelle:defs.bzl", "django_test")
+load("@rules_python//python:defs.bzl", "py_library")
 
 py_library(
     name = "__init__",
