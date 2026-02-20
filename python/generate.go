@@ -21,7 +21,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -207,13 +206,26 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 
 	parser := newPython3Parser(args.Config.RepoRoot, args.Rel, cfg.IgnoresDependency)
 
+	// Parse all Python files once upfront into a lookup table (LUT).
+	// This avoids re-parsing the same file multiple times when it appears
+	// in multiple targets (e.g. __init__.py in per-file mode).
+	allPyFiles := treeset.NewWith(godsutils.StringComparator)
+	pyLibraryFilenames.Each(func(_ int, v interface{}) { allPyFiles.Add(v) })
+	pyTestFilenames.Each(func(_ int, v interface{}) { allPyFiles.Add(v) })
+	djangoTestFilesNames.Each(func(_ int, v interface{}) { allPyFiles.Add(v) })
+
+	parseLUT, err := parser.parseAllToLUT(allPyFiles)
+	if err != nil {
+		log.Fatalf("ERROR: %v\n", err)
+	}
+
 	var result language.GenerateResult
 	result.Gen = make([]*rule.Rule, 0)
 
 	collisionErrors := singlylinkedlist.New()
 
 	appendPyLibrary := func(srcs *treeset.Set, pyLibraryTargetName string) {
-		allDeps, mainModules, annotations, err := parser.parse(srcs)
+		allDeps, mainModules, annotations, err := parser.parseFromLUT(srcs, parseLUT)
 		if err != nil {
 			log.Fatalf("ERROR: %v\n", err)
 		}
@@ -280,7 +292,7 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 
 	var pyTestTargets []*targetBuilder
 	newPyTestTargetBuilder := func(srcs *treeset.Set, pyTestTargetName string) *targetBuilder {
-		deps, _, annotations, err := parser.parse(srcs)
+		deps, _, annotations, err := parser.parseFromLUT(srcs, parseLUT)
 		if err != nil {
 			log.Fatalf("ERROR: %v\n", err)
 		}
@@ -302,7 +314,7 @@ func (py *Python) GenerateRules(args language.GenerateArgs) language.GenerateRes
 			generateImportsAttribute()
 	}
 	newDjangoTestBuilder := func(srcs *treeset.Set, djangoTestTargetName string) *targetBuilder {
-		deps, _, annotations, err := parser.parse(srcs)
+		deps, _, annotations, err := parser.parseFromLUT(srcs, parseLUT)
 		if err != nil {
 			log.Fatalf("ERROR: %v\n", err)
 		}
@@ -442,10 +454,9 @@ func ensureNoCollision(file *rule.File, targetName, kind string) error {
 	return nil
 }
 
-// isDjangoTestFile returns whether the given path contains the following
-// regex regexp.MustCompile(`from django\.test import.*TestCase|pytest\.mark\.django_db|gazelle: django_test`)
+// isDjangoTestFile returns whether the given path contains django test markers:
+// "from django.test import...TestCase", "pytest.mark.django_db", or "gazelle: django_test".
 func isDjangoTestFile(path string) bool {
-	re := regexp.MustCompile(`from django\.test import.*TestCase|pytest\.mark\.django_db|gazelle: django_test`)
 	file, err := os.Open(path)
 	if err != nil {
 		log.Fatalf("ERROR: %v\n", err)
@@ -454,7 +465,14 @@ func isDjangoTestFile(path string) bool {
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		if re.MatchString(scanner.Text()) {
+		line := scanner.Text()
+		if strings.Contains(line, "pytest.mark.django_db") {
+			return true
+		}
+		if strings.Contains(line, "gazelle: django_test") {
+			return true
+		}
+		if strings.Contains(line, "django.test") && strings.Contains(line, "TestCase") {
 			return true
 		}
 	}

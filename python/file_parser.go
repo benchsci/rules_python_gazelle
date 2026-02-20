@@ -20,23 +20,56 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/python"
 )
 
+// --- Pools & Pre-compiled Query ---
+
+var parserPool = sync.Pool{
+	New: func() any {
+		parser := sitter.NewParser()
+		parser.SetLanguage(python.GetLanguage())
+		return parser
+	},
+}
+
+var cursorPool = sync.Pool{
+	New: func() any { return sitter.NewQueryCursor() },
+}
+
+var importQuery *sitter.Query
+
+func init() {
+	var err error
+	queryString := `
+		(import_statement) @import
+		(import_from_statement) @import_from
+		(comment) @comment
+		(if_statement) @if_stmt
+	`
+	importQuery, err = sitter.NewQuery([]byte(queryString), python.GetLanguage())
+	if err != nil {
+		panic(fmt.Sprintf("failed to compile import query: %v", err))
+	}
+}
+
+// --- Constants ---
+
 const (
 	sitterNodeTypeString              = "string"
-	sitterNodeTypeComment             = "comment"
 	sitterNodeTypeIdentifier          = "identifier"
 	sitterNodeTypeDottedName          = "dotted_name"
-	sitterNodeTypeIfStatement         = "if_statement"
 	sitterNodeTypeAliasedImport       = "aliased_import"
 	sitterNodeTypeWildcardImport      = "wildcard_import"
 	sitterNodeTypeImportStatement     = "import_statement"
 	sitterNodeTypeComparisonOperator  = "comparison_operator"
 	sitterNodeTypeImportFromStatement = "import_from_statement"
 )
+
+// --- Types ---
 
 type ParserOutput struct {
 	FileName string
@@ -55,9 +88,11 @@ func NewFileParser() *FileParser {
 	return &FileParser{}
 }
 
-func ParseCode(code []byte) (*sitter.Node, error) {
-	parser := sitter.NewParser()
-	parser.SetLanguage(python.GetLanguage())
+// --- Parsing Logic ---
+
+func parseCode(code []byte) (*sitter.Node, error) {
+	parser := parserPool.Get().(*sitter.Parser)
+	defer parserPool.Put(parser)
 
 	tree, err := parser.ParseCtx(context.Background(), nil, code)
 	if err != nil {
@@ -67,14 +102,13 @@ func ParseCode(code []byte) (*sitter.Node, error) {
 	return tree.RootNode(), nil
 }
 
-func (p *FileParser) parseMain(ctx context.Context, node *sitter.Node) bool {
+func (p *FileParser) parseMain(node *sitter.Node) bool {
 	for i := 0; i < int(node.ChildCount()); i++ {
-		if err := ctx.Err(); err != nil {
-			return false
-		}
 		child := node.Child(i)
-		if child.Type() == sitterNodeTypeIfStatement &&
-			child.Child(1).Type() == sitterNodeTypeComparisonOperator && child.Child(1).Child(1).Type() == "==" {
+		if child.Type() == "if_statement" &&
+			child.ChildCount() > 1 &&
+			child.Child(1).Type() == sitterNodeTypeComparisonOperator &&
+			child.Child(1).Child(1).Type() == "==" {
 			statement := child.Child(1)
 			a, b := statement.Child(0), statement.Child(2)
 			// convert "'__main__' == __name__" to "__name__ == '__main__'"
@@ -82,13 +116,27 @@ func (p *FileParser) parseMain(ctx context.Context, node *sitter.Node) bool {
 				a, b = b, a
 			}
 			if a.Type() == sitterNodeTypeIdentifier && a.Content(p.code) == "__name__" &&
-				// at github.com/smacker/go-tree-sitter@latest (after v0.0.0-20240422154435-0628b34cbf9c we used)
-				// "__main__" is the second child of b. But now, it isn't.
-				// we cannot use the latest go-tree-sitter because of the top level reference in scanner.c.
-				// https://github.com/smacker/go-tree-sitter/blob/04d6b33fe138a98075210f5b770482ded024dc0f/python/scanner.c#L1
 				b.Type() == sitterNodeTypeString && string(p.code[b.StartByte()+1:b.EndByte()-1]) == "__main__" {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+func (p *FileParser) isTypeCheckingBlock(node *sitter.Node) bool {
+	if node.Type() != "if_statement" || node.ChildCount() < 2 {
+		return false
+	}
+	condition := node.Child(1)
+	if condition.Type() == sitterNodeTypeIdentifier && condition.Content(p.code) == "TYPE_CHECKING" {
+		return true
+	}
+	if condition.Type() == "attribute" && condition.ChildCount() >= 3 {
+		obj, attr := condition.Child(0), condition.Child(2)
+		if obj.Type() == sitterNodeTypeIdentifier && obj.Content(p.code) == "typing" &&
+			attr.Type() == sitterNodeTypeIdentifier && attr.Content(p.code) == "TYPE_CHECKING" {
+			return true
 		}
 	}
 	return false
@@ -112,7 +160,7 @@ func parseImportStatement(node *sitter.Node, code []byte) (module, bool) {
 	return module{}, false
 }
 
-func (p *FileParser) parseImportStatements(node *sitter.Node) bool {
+func (p *FileParser) parseImportStatements(node *sitter.Node) {
 	if node.Type() == sitterNodeTypeImportStatement {
 		for j := 1; j < int(node.ChildCount()); j++ {
 			m, ok := parseImportStatement(node.Child(j), p.code)
@@ -128,7 +176,7 @@ func (p *FileParser) parseImportStatements(node *sitter.Node) bool {
 	} else if node.Type() == sitterNodeTypeImportFromStatement {
 		from := node.Child(1).Content(p.code)
 		if strings.HasPrefix(from, ".") {
-			return true
+			return
 		}
 		for j := 3; j < int(node.ChildCount()); j++ {
 			m, ok := parseImportStatement(node.Child(j), p.code)
@@ -140,18 +188,7 @@ func (p *FileParser) parseImportStatements(node *sitter.Node) bool {
 			m.Name = fmt.Sprintf("%s.%s", from, m.Name)
 			p.output.Modules = append(p.output.Modules, m)
 		}
-	} else {
-		return false
 	}
-	return true
-}
-
-func (p *FileParser) parseComments(node *sitter.Node) bool {
-	if node.Type() == sitterNodeTypeComment {
-		p.output.Comments = append(p.output.Comments, comment(node.Content(p.code)))
-		return true
-	}
-	return false
 }
 
 func (p *FileParser) SetCodeAndFile(code []byte, relPackagePath, filename string) {
@@ -160,34 +197,68 @@ func (p *FileParser) SetCodeAndFile(code []byte, relPackagePath, filename string
 	p.output.FileName = filename
 }
 
-func (p *FileParser) parse(ctx context.Context, node *sitter.Node) {
-	if node == nil {
-		return
-	}
-	for i := 0; i < int(node.ChildCount()); i++ {
-		if err := ctx.Err(); err != nil {
-			return
-		}
-		child := node.Child(i)
-		if p.parseImportStatements(child) {
-			continue
-		}
-		if p.parseComments(child) {
-			continue
-		}
-		p.parse(ctx, child)
-	}
-}
-
+// Parse uses pre-compiled tree-sitter queries to extract imports and comments
+// from the parsed AST, replacing the previous recursive traversal approach.
 func (p *FileParser) Parse(ctx context.Context) (*ParserOutput, error) {
-	rootNode, err := ParseCode(p.code)
+	rootNode, err := parseCode(p.code)
 	if err != nil {
 		return nil, err
 	}
 
-	p.output.HasMain = p.parseMain(ctx, rootNode)
+	p.output.HasMain = p.parseMain(rootNode)
 
-	p.parse(ctx, rootNode)
+	cursor := cursorPool.Get().(*sitter.QueryCursor)
+	defer cursorPool.Put(cursor)
+
+	cursor.Exec(importQuery, rootNode)
+
+	seenImports := make(map[uint32]bool)
+
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		match, ok := cursor.NextMatch()
+		if !ok {
+			break
+		}
+
+		for _, capture := range match.Captures {
+			captureName := importQuery.CaptureNameForId(capture.Index)
+			node := capture.Node
+
+			switch captureName {
+			case "import", "import_from":
+				if seenImports[node.StartByte()] {
+					continue
+				}
+				seenImports[node.StartByte()] = true
+				p.parseImportStatements(node)
+
+			case "comment":
+				p.output.Comments = append(p.output.Comments, comment(node.Content(p.code)))
+
+			case "if_stmt":
+				if p.isTypeCheckingBlock(node) {
+					for j := 0; j < int(node.ChildCount()); j++ {
+						subChild := node.Child(j)
+						if subChild.Type() == "block" {
+							for k := 0; k < int(subChild.ChildCount()); k++ {
+								stmt := subChild.Child(k)
+								if stmt.Type() == sitterNodeTypeImportStatement || stmt.Type() == sitterNodeTypeImportFromStatement {
+									if !seenImports[stmt.StartByte()] {
+										seenImports[stmt.StartByte()] = true
+										p.parseImportStatements(stmt)
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	return &p.output, nil
 }
 
