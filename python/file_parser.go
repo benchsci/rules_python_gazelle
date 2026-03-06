@@ -108,6 +108,7 @@ func (p *FileParser) parseMain(node *sitter.Node) bool {
 		if child.Type() == "if_statement" &&
 			child.ChildCount() > 1 &&
 			child.Child(1).Type() == sitterNodeTypeComparisonOperator &&
+			child.Child(1).ChildCount() > 2 &&
 			child.Child(1).Child(1).Type() == "==" {
 			statement := child.Child(1)
 			a, b := statement.Child(0), statement.Child(2)
