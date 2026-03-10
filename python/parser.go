@@ -18,6 +18,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"runtime"
 	"strings"
 
 	"github.com/emirpasic/gods/sets/treeset"
@@ -50,6 +51,93 @@ func newPython3Parser(
 	}
 }
 
+// parseAllToLUT parses all Python files concurrently and returns a lookup table
+// mapping filename to its parsed output. This allows parsing each file exactly
+// once, even when results are consumed by multiple targets.
+func (p *python3Parser) parseAllToLUT(pyFilenames *treeset.Set) (map[string]*ParserOutput, error) {
+	values := pyFilenames.Values()
+	lut := make(map[string]*ParserOutput, len(values))
+
+	g, ctx := errgroup.WithContext(context.Background())
+	g.SetLimit(runtime.NumCPU())
+
+	results := make([]*ParserOutput, len(values))
+	filenames := make([]string, len(values))
+
+	for i, v := range values {
+		filenames[i] = v.(string)
+	}
+
+	for i, filename := range filenames {
+		i, filename := i, filename
+		g.Go(func() error {
+			res, err := NewFileParser().ParseFile(ctx, p.repoRoot, p.relPackagePath, filename)
+			if err != nil {
+				return err
+			}
+			results[i] = res
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	for i, filename := range filenames {
+		lut[filename] = results[i]
+	}
+
+	return lut, nil
+}
+
+// parseFromLUT processes pre-parsed results from a LUT for the given filenames,
+// applying annotation and dependency filtering.
+func (p *python3Parser) parseFromLUT(pyFilenames *treeset.Set, lut map[string]*ParserOutput) (*treeset.Set, map[string]*treeset.Set, *annotations, error) {
+	modules := treeset.NewWith(moduleComparator)
+	mainModules := make(map[string]*treeset.Set)
+	allAnnotations := new(annotations)
+	allAnnotations.ignore = make(map[string]struct{})
+
+	for _, v := range pyFilenames.Values() {
+		filename := v.(string)
+		res, ok := lut[filename]
+		if !ok {
+			return nil, nil, nil, fmt.Errorf("file %q not found in parse LUT", filename)
+		}
+
+		if res.HasMain {
+			mainModules[res.FileName] = treeset.NewWith(moduleComparator)
+		}
+		annotations, err := annotationsFromComments(res.Comments)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to parse annotations: %w", err)
+		}
+
+		for _, m := range res.Modules {
+			if annotations.ignores(m.Name) || annotations.ignores(m.From) {
+				continue
+			}
+			if p.ignoresDependency(m.Name) || p.ignoresDependency(m.From) {
+				continue
+			}
+			modules.Add(m)
+			if res.HasMain {
+				mainModules[res.FileName].Add(m)
+			}
+		}
+
+		for k, v := range annotations.ignore {
+			allAnnotations.ignore[k] = v
+		}
+		allAnnotations.includeDeps = append(allAnnotations.includeDeps, annotations.includeDeps...)
+	}
+
+	allAnnotations.includeDeps = removeDupesFromStringTreeSetSlice(allAnnotations.includeDeps)
+
+	return modules, mainModules, allAnnotations, nil
+}
+
 // parseSingle parses a single Python file and returns the extracted modules
 // from the import statements as well as the parsed comments.
 func (p *python3Parser) parseSingle(pyFilename string) (*treeset.Set, map[string]*treeset.Set, *annotations, error) {
@@ -61,73 +149,11 @@ func (p *python3Parser) parseSingle(pyFilename string) (*treeset.Set, map[string
 // parse parses multiple Python files and returns the extracted modules from
 // the import statements as well as the parsed comments.
 func (p *python3Parser) parse(pyFilenames *treeset.Set) (*treeset.Set, map[string]*treeset.Set, *annotations, error) {
-	modules := treeset.NewWith(moduleComparator)
-
-	g, ctx := errgroup.WithContext(context.Background())
-	ch := make(chan struct{}, 6) // Limit the number of concurrent parses.
-	chRes := make(chan *ParserOutput, len(pyFilenames.Values()))
-	for _, v := range pyFilenames.Values() {
-		ch <- struct{}{}
-		g.Go(func(filename string) func() error {
-			return func() error {
-				defer func() {
-					<-ch
-				}()
-				res, err := NewFileParser().ParseFile(ctx, p.repoRoot, p.relPackagePath, filename)
-				if err != nil {
-					return err
-				}
-				chRes <- res
-				return nil
-			}
-		}(v.(string)))
-	}
-	if err := g.Wait(); err != nil {
+	lut, err := p.parseAllToLUT(pyFilenames)
+	if err != nil {
 		return nil, nil, nil, err
 	}
-	close(ch)
-	close(chRes)
-	mainModules := make(map[string]*treeset.Set, len(chRes))
-	allAnnotations := new(annotations)
-	allAnnotations.ignore = make(map[string]struct{})
-	for res := range chRes {
-		if res.HasMain {
-			mainModules[res.FileName] = treeset.NewWith(moduleComparator)
-		}
-		annotations, err := annotationsFromComments(res.Comments)
-		if err != nil {
-			return nil, nil, nil, fmt.Errorf("failed to parse annotations: %w", err)
-		}
-
-		for _, m := range res.Modules {
-			// Check for ignored dependencies set via an annotation to the Python
-			// module.
-			if annotations.ignores(m.Name) || annotations.ignores(m.From) {
-				continue
-			}
-
-			// Check for ignored dependencies set via a Gazelle directive in a BUILD
-			// file.
-			if p.ignoresDependency(m.Name) || p.ignoresDependency(m.From) {
-				continue
-			}
-
-			modules.Add(m)
-			if res.HasMain {
-				mainModules[res.FileName].Add(m)
-			}
-		}
-
-		// Collect all annotations from each file into a single annotations struct.
-		for k, v := range annotations.ignore {
-			allAnnotations.ignore[k] = v
-		}
-		allAnnotations.includeDeps = append(allAnnotations.includeDeps, annotations.includeDeps...)
-	}
-
-	allAnnotations.includeDeps = removeDupesFromStringTreeSetSlice(allAnnotations.includeDeps)
-
-	return modules, mainModules, allAnnotations, nil
+	return p.parseFromLUT(pyFilenames, lut)
 }
 
 // removeDupesFromStringTreeSetSlice takes a []string, makes a set out of the

@@ -254,3 +254,60 @@ func TestParseFull(t *testing.T) {
 		FileName: "a.py",
 	}, *output)
 }
+
+func TestParseTypeChecking(t *testing.T) {
+	t.Parallel()
+	units := []struct {
+		name     string
+		code     string
+		filepath string
+		result   []module
+	}{
+		{
+			name: "TYPE_CHECKING bare",
+			code: `import os
+if TYPE_CHECKING:
+    from foo import bar
+`,
+			filepath: "abc.py",
+			result: []module{
+				{Name: "os", LineNumber: 1, Filepath: "abc.py"},
+				{Name: "foo.bar", LineNumber: 3, Filepath: "abc.py", From: "foo"},
+			},
+		},
+		{
+			name: "typing.TYPE_CHECKING",
+			code: `import os
+if typing.TYPE_CHECKING:
+    from baz import qux
+    import something
+`,
+			filepath: "abc.py",
+			result: []module{
+				{Name: "os", LineNumber: 1, Filepath: "abc.py"},
+				{Name: "baz.qux", LineNumber: 3, Filepath: "abc.py", From: "baz"},
+				{Name: "something", LineNumber: 4, Filepath: "abc.py"},
+			},
+		},
+		{
+			name: "not TYPE_CHECKING",
+			code: `if some_other_condition:
+    from foo import bar
+`,
+			filepath: "abc.py",
+			result: []module{
+				{Name: "foo.bar", LineNumber: 2, Filepath: "abc.py", From: "foo"},
+			},
+		},
+	}
+	for _, u := range units {
+		t.Run(u.name, func(t *testing.T) {
+			p := NewFileParser()
+			code := []byte(u.code)
+			p.SetCodeAndFile(code, "", u.filepath)
+			output, err := p.Parse(context.Background())
+			assert.NoError(t, err)
+			assert.Equal(t, u.result, output.Modules)
+		})
+	}
+}

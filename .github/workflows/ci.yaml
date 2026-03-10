@@ -19,9 +19,9 @@ jobs:
         # Steps represent a sequence of tasks that will be executed as part of the job
         steps:
             # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-            - uses: actions/checkout@v2
+            - uses: actions/checkout@v4
             - name: Mount bazel caches
-              uses: actions/cache@v2
+              uses: actions/cache@v4
               with:
                   path: |
                       "~/.cache/bazel"
@@ -29,7 +29,4 @@ jobs:
                   key: bazel-cache-${{ hashFiles('**/BUILD.bazel', '**/*.bzl', 'WORKSPACE', '**/*.js') }}
                   restore-keys: bazel-cache-
             - name: bazel test //...
-              env:
-                  # Bazelisk will download bazel to here
-                  XDG_CACHE_HOME: ~/.cache/bazel-repo
               run: bazel test //... 
